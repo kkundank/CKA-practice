@@ -1,0 +1,1189 @@
+							CLASSROOM PRACTICE QUESTIONS WITH ANSWERS  
+
+
+
+CKA exam  Q01:
+#Create Alias for kubectl  command:
+ alias g=kubectl
+Q 01) #Create a new pod called admin-pod with image busybox. Allow it to be able to set system_time. Container should sleep for 3200 seconds.
+       #kubernetes #CKA #DevOps #security 
+It's easy, you can do it as follows:
+
+SOLUTION 1 #Create Pod using below command:      
+
+g run admin-pod --image=busybox --command sleep 3200 --dry-run=client -o yaml |egrep -v 'Timestamp|dns|resource|restart|statusTimestamp|dns|resource|restart|status' |tee admin.pod.yaml
+
+echo '    securityContext:
+      capabilities:
+        add: ["SYS_TIME"]'  |tee -a admin.pod.yaml
+  
+g apply -f  admin.pod.yaml
+
+
+
+
+
+Question 03 ) Create a new deployment called web-proj-268 with image nginx:1.16 and one replica. Next, upgrade the deployment to version 1.17 using rolling update. 
+Make sure that the version upgrade is recorded in the resource annotation.
+ #kubernetes #CKA #DevOps #security 
+It's easy, you can do it as follows:
+SOLUTION 3 #
+alias g=kubectl
+g create deployment web-proj-268  --image=nginx:1.16
+g describe deployment web-proj-268  #You can check container name on 14th line mostly by-default
+g set image deployment web-proj-268 nginx=nginx:1.17 --record
+g rollout history deployment  web-proj-268
+
+
+
+
+Question 04 ) Create a new deployment web-003, scale this deployment to 3 replicas, make sure desired number of pods are always running.
+Create exam scenario using below command :
+ sudo sed -i 's/\- kube-controller-manager/\- kube-controller-man/g' /etc/kubernetes/manifests/kube-controller-manager.yaml
+  #kubernetes #CKA #DevOps #security 
+
+ It's easy, you can do it as follows:
+SOLUTION 4#
+alias g=kubectl
+g create deployment web-003 --image=nginx --replicas=3
+g describe deployment web-003
+g get pods -A
+g logs kube-controller-man-node6 -n kube-system
+sudo cat  /etc/kubernetes/controller-manager.conf
+sudo find / -name  kube-controller-man* |grep bin
+sudo grep -r kube-controller-man /etc/
+
+change kube-controller-man to kube-controller-manager inside /etc/kubernetes/controller-manager.conf
+
+
+
+
+
+
+Question 05 ) Upgrade given cluster (master and worker node) from 1.23.8-00 to 1.24.2-00. Make sure to first drain respective node prior to update 
+and make it available post update.
+ #kubernetes #CKA #DevOps #security 
+
+Our cluster is running latest code so we need to First downgrade nodes for upgrade (use 3 step copy paste as instructed for downgrade)
+
+
+STEP 1 On Node6:
+###########
+echo '
+alias g=kubectl
+g drain node6 --ignore-daemonsets
+g get pods -A -o wide
+sudo apt update
+#apt-cache madison kubeadm
+sudo  apt -y install kubeadm=1.23.8-00 --allow-downgrades
+sudo kubeadm  upgrade apply v1.23.8 -y 
+sudo apt install kubelet=1.23.8-00 --allow-downgrades -y
+sudo systemctl restart kubelet
+g uncordon node6
+sleep 20
+g drain node7 --ignore-daemonsets
+g get pods -A -o wide' |tee control-node_grade.sh
+
+
+source ./control-node_grade.sh
+###########
+STEP 2)Wait for above script to finish and then, Come back to nodet, run it on node7
+###########
+echo '
+sudo apt update
+sudo  apt -y install kubeadm=1.23.8-00 --allow-downgrades
+sudo kubeadm upgrade  node
+sudo apt install kubelet=1.23.8-00 --allow-downgrades -y
+sudo systemctl restart kubelet ' |tee node7-node_grade.sh
+
+
+source ./node7-node_grade.sh
+sudo reboot
+
+
+###########
+STEP 3) Wait for above script to finish and then, Come back to node6 and run below command (downgrade expects one reboot on each node):
+###########
+g uncordon node7
+g uncordon node6 
+sudo reboot
+
+
+###########
+
+
+
+
+SOLUTION 05) NOW We will answer the question:
+STEP 1)On node6 :
+
+
+alias g=kubectl
+g drain node6 --ignore-daemonsets
+g get pods -A -o wide
+sudo apt update
+apt-cache madison kubeadm
+sudo  apt -y install kubeadm=1.24.2-00
+sudo kubeadm  upgrade apply v1.24.2 -y 
+sudo apt install kubelet=1.24.2-00 -y
+sudo systemctl restart kubelet
+g uncordon node6
+
+
+g drain node7 --ignore-daemonsets
+g get pods -A -o wide
+
+
+STEP 2)On node7
+
+
+
+
+sudo apt update
+sudo  apt -y install kubeadm=1.24.2-00
+sudo kubeadm upgrade  node
+sudo apt install kubelet=1.24.2-00  -y
+sudo systemctl restart kubelet 
+
+
+STEP 3)On node6 :
+
+
+g uncordon node7
+
+
+
+
+Q 6) deploy a web-load-5461 pod using nginx:1.17 with the label set to tier=web
+
+It's easy:
+ #kubernetes #CKA #DevOps #security 
+SOLUTION 6) 
+
+alias g=kubectl
+g run web-load-5461 --image=nginx:1.17 --labels tier=web
+g get pods --show-labels
+
+
+
+
+
+
+Q 7) Create static pod on node07 called static-nginx with image nginx and you have to make sure that it is recreated/restarted automatically in case of any failure happens.
+It's easy:
+ #kubernetes #CKA #DevOps #security 
+SOLUTION 7) 
+STEP 1)On node6 :
+ alias g=kubectl
+ g run static-nginx --image=nginx --dry-run=client -o yaml
+ g run static-nginx --image=nginx --dry-run=client -o yaml |tee  static-pod.yaml
+ vi static-pod.yaml
+ cat static-pod.yaml |ssh node7 "tee static-pod.yaml"
+ ssh node7
+
+STEP 1)On node7 :
+
+ ps -ef|grep kubelet
+ sudo grep static /var/lib/kubelet/config.yaml
+ sudo cp static-pod.yaml /etc/kubernetes/manifests/.
+ ls /etc/kubernetes/manifests
+
+Come back to node6 and check it should be running
+
+
+
+
+
+
+
+Q 8) Create a pod called pod-multi with 2 containers as it is descripted below:
+   Container 1 : name:container1, image: nginx 
+   Container 2 : name:container2, image: busybox, command: sleep 4800
+   
+ #kubernetes #CKA #DevOps #security 
+ It's easy:
+
+SOLUTION 8) 
+
+STEP 1)On node6 :
+    
+alias g=kubectl
+g run pod-multi --image=nginx --dry-run=client -o yaml |tee  multipod.yaml
+#Edit  multipod.yaml like below:
+########
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: pod-multi
+  name: pod-multi
+spec:
+  containers:
+  - image: nginx
+    name: container1
+  - image: busybox
+    name:  container2
+    command: ["sleep","4800"]
+#########
+g create -f multipod.yaml
+g get pods -o wide
+g describe pod pod-multi
+
+
+
+
+Q 9) Create a pod called delta-pod in defence namespace belonging to the development environment (env=dev)  and frontend tier (tier=front), image: nginx:1.17
+    #kubernetes #CKA #DevOps #security 
+It's easy:
+SOLUTION 9) 
+STEPS)On node6 :
+alias g=kubectl
+g create ns defense
+g run delta-pod --image=nginx:1.17 --labels env=dev,tier=front -n defense
+g get pods
+g get pods -n defense
+g describe pods delta-pod  -n defense
+
+
+
+
+
+
+
+
+
+
+
+Q10) Get web-load-5461 pod details in json format and store it in a file at /opt/output/web-load-5461-j070822n.json
+ 
+  It's easy: #kubenetes #CKA #DevOps #security 
+
+SOLUTION 10) 
+
+STEPS)On node6 :
+ alias g=kubectl
+  g get pods web-load-5461 -o json |sudo tee /opt/output/web-load-5461-j070822n.json
+  sudo cat /opt/output/web-load-5461-j070822n.json
+
+
+
+
+
+
+
+Q11) Backup ETCD database and save it root with name of backup "etcd-backup.db"
+ 
+It's easy: #kubenetes #CKA #DevOps #security 
+
+SOLUTION 11) 
+
+alias g=kubectl
+sudo -i
+sudo snap install etcd
+g get pods -A |grep etcd
+g describe  pods etcd-node6  -n kube-system |grep Command -A 20
+######run below as root)
+ETCDCTL_API=3 etcdctl --endpoints=https://127.0.0.1:2379 \
+  --cacert=/etc/kubernetes/pki/etcd/ca.crt --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key \
+  snapshot save /root/etcd-backup070822
+
+ls   /root/etcd-backup070822
+
+
+
+
+
+Q12) A new application finance-audit-pod is deployed in finance namespace. Find out what is wrong with it and fix the issue. 
+ NOTE: No configuration changes allowed, you can only delete or recreate the pod.
+  Below command will create a scenario for us:
+   g create ns finance  ; g run  finance-audit-pod --image=busybox -n finance --command sleeo 180
+  It's easy: #kubenetes #CKA #DevOps #security 
+
+SOLUTION 12) 
+ alias g=kubectl
+ g get pods -n finance
+    g describe pod finance-audit-pod -n finance
+    g describe pod finance-audit-pod -n finance |grep -i command -A5
+    g get pods finance-audit-pod -n finance -o yaml |tee finance-pod.yaml
+    vi finance-pod.yaml
+    grep sleep finance-pod.yaml
+    g delete pods finance-audit-pod -n finance  --grace-period=0 --force
+    g create -f finance-pod.yaml
+    g get pods -n finance
+
+
+
+Q 13 :use JSONPath query to retrieve our OS images of all K8s nodes and store it in a file ~/allNodeOSImages8.txt
+13 - CKA exam Q13 with Solution .. Run a jsonpath query
+
+
+SOLUTION 13) 
+ alias g=kubectl
+  g get nodes -o jsonpath='{.items[*].status.nodeInfo.osImage}'| tee allNodeOSImages8.txt
+  
+Reference links:
+https://kubernetes.io/docs/reference/...
+ https://community.kodekloud.com/t/jso...
+
+
+
+
+
+
+
+Q14) Create a persistent volume with given specifications:
+  Volume Name - pv-rnd
+  storage - 100Mi
+  Access modes - ReadWriteMany
+  host path - /pv/host-data-rnd
+ 
+  It's easy:#kubenetes #CKA #DevOps #security 
+
+
+SOLUTION 14) 
+ alias g=kubectl
+ echo 'apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-rnd
+spec:
+  capacity:
+    storage: 100Mi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+      path: /pv/host-data-rnd' |tee pv1.yaml
+ cat pv1.yaml
+ g create -f pv1.yaml
+ g get pv
+ g describe pv pv-rnd
+
+
+
+
+
+
+Q15) Expose "audit-web-app" pod to by creating a service "audit-web-app-service" on port 30002 on nodes of given cluster.
+  Note : Now given web application listens on port 8080
+  use below command to create an exam like scenario: 
+    kubectl run audit-web-app --image=nginx --port=8080
+ 
+  It's easy:
+
+SOLUTION 15) 
+ alias g=kubectl
+ g run audit-web-app --image=nginx --port=8080
+ g expose pod audit-web-app --name=audit-web-app-svc --type=NodePort --dry-run=client -o yaml |tee audit-web-svc.yaml
+ cat audit-web-svc.yaml
+ ###########
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    run: audit-web-app
+  name: audit-web-app-service
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+    nodePort: 30002
+  selector:
+    run: audit-web-app
+  type: NodePort
+  ##########
+ g apply -f audit-web-svc.yaml
+ g get pods -o wide |grep audit
+ g describe svc audit-web-app-svc
+
+
+
+
+
+
+Q16) Create a pod called pod-jxc, using details mentioned below:
+  SecurityContect
+  runasUser: 1000
+  fsGroup: 2000
+  
+  Image=redis:alpine
+  
+  It's easy: #kubenetes #CKA #DevOps #security 
+SOLUTION 16) 
+ alias g=kubectl
+ g run pod-jxc --image=redis:alpine --dry-run=client -o yaml|tee 16-sec-pod.yaml
+ 
+ Search for RunasUser in documentation and append specific info in for 16-pod.yaml under specs: 
+ g apply -f  16-sec-pod.yaml
+ 
+ Now if try running a command with some other user (other than uid 1000)
+ g exec  -it pod-jxc  -- whoami
+ 
+ It will not let you do that.
+
+
+
+
+
+
+
+It is critical to understand that taints and tolerations are only enforced at the node level, and pods have the freedom to choose nodes without taints, but if all of our nodes are tainted then new pods must be with exact tolerations defined in them.
+
+Q17) Apply taint a worked node node7 with details provided below:
+ Create a pod called dev-pod-nginx using image=nginx, 
+ make sure workloads are not scheduled to this worker node (node7)
+ Create another pod prod-pod-nginx using image=nginx with a toleration to be scheduled on node7. 
+ 
+ Details :key:env_type, value:production, operator: Equal & effect: NoSchedule   
+ 
+  It's easy: #kubenetes #CKA #DevOps #security  #2023
+
+
+SOLUTION 17) 
+ alias g=kubectl
+ g describe node node6 |grep -i taint
+ g describe node node7 |grep -i taint
+ g describe node node8 |grep -i taint
+ g taint node node7 env_type=production:NoSchedule
+ g describe node node7 |grep -i taint
+ g run  dev-pod-nginx --image=nginx
+ g get pod dev-pod-nginx -o wide
+ g run prod-nginx --image=nginx --dry-run=client -o yaml |tee 17-prod.yaml 
+ 
+ search documentation for tolerations, get specified format and 
+ Specify  below spec field in 17-prod.yaml:
+ 
+tolerations:
+- key: "key1"
+  operator: "Equal"
+  value: "value1"
+  effect: "NoSchedule"
+  
+  g apply -f 17-prod.yaml
+
+
+Now pod should run on Node7 due to taint info in the pod
+
+
+
+
+Q18) Create a user “nec-adm". Grant nec-adm access to cluster, should have permissions to create, list, get, update, and delete pods in nec namespace 
+ Private key exist in location:  /vagrant/nec-adm.key and csr at /vagrant/nec-adm.csr
+   
+  Create exam scenario using below commands:
+   g create ns nec
+   openssl genrsa -out nec-adm.key 2048
+   openssl req -new -key nec-adm.key -out nec-adm.csr
+
+ 
+  It's an easy 1:   #kubenetes #CKA #DevOps #security  #2023
+
+SOLUTION 18) 
+
+ alias g=kubectl
+ 
+ search for "certificate siging requests" in documentation
+ Reach to "Create CertificateSigningRequest"
+ copy mentioned content and edit it : remove expirationSeconds and base64 encoded key value infront of request:
+ 
+ now generate base64 encoded value using given csr & replace sample file search: (a long key value)
+
+ cat nec-adm.csr|base64 |tr -d "\n"
+   
+ place output in new file in front of request: 
+ 
+ apply it in a newfile.yaml
+ 
+ 
+ ############FILES ARE AS FOLLOWS########
+ 
+ echo 'apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: nec-adm
+spec:
+  request: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQzh6Q0NBZHNDQVFBd2daTXhDekFKQmdOVkJBWVRBa2xPTVFzd0NRWURWUVFJREFKTlNERU5NQXNHQTFVRQpCd3dFVUhWdVpURVNNQkFHQTFVRUNnd0pUa1ZESUVsdVpHbGhNUlV3RXdZRFZRUUxEQXhPUlVNZ1VISmxjMkZzClpYTXhGakFVQmdOVkJBTU1EVzVsWXk1cGJtUnBZUzVqYjIweEpUQWpCZ2txaGtpRzl3MEJDUUVXRm5KaGJTNXUKWVhSb1FHNWxZeTVwYm1ScFlTNWpiMjB3Z2dFaU1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQgpBUUM2SmlxMnozVFJPT1FpdmFzZ2VrMkZNVjRLbFFINVNFLzVGWFBFWWtJdWpTOFlxVk1LUGhEWi91M0xBNUtMCkpZYUd5cE92cHhRTlhIR1RqekJBbFA1Q0RmektYVkNkdHlPUWxHRHM3cXBFSS84d0pnbEY2V3ZGQTBBRzJwYnEKOFZ2OWRiMk95L3NORU9EQ2wyQzY2TjJhTTQ2MXNFTDE2ekgzWkNUWWJrdUlxM2RpWGRhMlM3Q2tXanp5eEpQdApQNUl1akRBQmN4ODFhdWRXWGxpaVNDUCtIMUdaUUw4NksyQ1M0c1pwbDdMZEU2NnJITytreURHTEhhT1BpZUt2ClJtZlluaFgySTI1c2ljYnlYcWRsUlViL2dZYndiS0tKT2RWS3diSk82alFLNjFTRnlmT0l5S0dHQ0dhZTRWRG8KZHpJMUY5eFBqMjhVVk8zdWRETVVqTW1MQWdNQkFBR2dHakFZQmdrcWhraUc5dzBCQ1FJeEN3d0pUa1ZESUVsdQpaR2xoTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFBM0FRYUd6UWZKTHNMUUluRmdWRnZyY3lIazhBdit3VTNECktIYlR1emlqcjhVUmJ1NkswY0h4QUxFMnBUMHpTS1pIMW9ocnJCTk0xOURtNmtuandNeGloeDliN1JkakpSd0MKbWFlcVFHTzBxNmxDa1p2TzRHc0tINmZ2VXljOWc2dDJjc0J4aXZWSFpIb0RmSmtqdU9HMmRSM0FOMUcySWJSeAowRVFQenNGY3ZVaUFVNGtjMFpMOHl4VWNCN3hiVWJvZDZFYUszKzRTVFQrTmZxb2RFNkVpNmx3T1g5Qm1WRzNRCjJXS2JXQ21PZ08zRmRPY0s3SFk3dHhaQWkrR2pkbGR6VzdxRXBQbFU1cnU4TUhCaE9nMVZsVXpGTjlIcVBnQ2IKb2VwaWRMOGk0VXNHYi9Bejc0eEhCck9FTUxMSTRZNDdXYVNjb2dPK2tMZXBXcjVuVHpsMwotLS0tLUVORCBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0K
+  signerName: kubernetes.io/kube-apiserver-client
+  usages:
+  - client auth' |tee necadm.yaml
+
+###
+g apply -f necadm.yaml
+
+g get csr
+
+g certificate approve nec-adm
+
+####
+
+
+echo 'apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: nec
+  name: pod-admin
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["pods"]
+  verbs: ["get", "watch", "list","create","delete","update"]' |tee necrole.yaml
+
+
+
+###
+g apply -f necrole.yaml
+#########
+
+echo 'apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: admin-pods
+  namespace: nec
+subjects:
+- kind: User
+  name: nec-adm
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: pod-admin
+  apiGroup: rbac.authorization.k8s.io' |tee nec-role-bind.yaml
+  
+  ####
+  g apply -f nec-role-bind.yaml
+  
+ follow setps metioned in documentation:
+ 
+https://kubernetes.io/docs/reference/...
+ 
+ Now check nec-adm functionalities as below: 
+ g auth can-i get pods -n nec --as nec-adm
+ g get pod -n nec --as nec-adm
+ g auth can-i list pods -n nec --as nec-adm
+
+
+
+
+
+Q19) Craete a PersistentVolume, PersistentVolumeClaim and Pod with below specifications
+
+  PV - name : mypvl , Size: 100Mi, AccessModes: ReadWritemany, Hostpath: /pv/log, Reclaim Policy: Retain
+  PVC - name:  pv-claim-l, Storage request: 50Mi, Access Modes: ReadWritemany 
+  Pod - name : my-nginx-pod, image Name: nginx, Volume: PersistentVolumeClaim: pv-claim-l, volume mount : /log
+  
+ 
+  It's an easy 1:   #kubenetes #CKA #DevOps #security #2023 
+
+SOLUTION 19) 
+ alias g=kubectl 
+ 
+echo 'apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mypvl
+spec:
+  capacity:
+    storage: 100Mi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /pv/log' |tee pv.yaml
+
+###
+g apply -f pv.yaml
+###
+
+echo 'apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pv-claim-l
+spec:
+  accessModes:
+    - ReadWriteMany
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 50Mi' | tee pvc.yaml
+
+###
+g apply -f pvc.yaml
+###
+
+echo 'apiVersion: v1
+kind: Pod
+metadata:
+  name: my-nginx-pod
+spec:
+  containers:
+    - name : mynginx
+      image: nginx
+      volumeMounts:
+      - mountPath: "/log"
+        name: mypd
+  volumes:
+    - name: mypd
+      persistentVolumeClaim:
+        claimName: pv-claim-l'|tee pod.yaml
+
+
+###
+
+g apply -f pod.yaml
+##
+ g describe pod my-nginx-pod
+ g get pods
+ g get pv
+ g get pvc
+
+
+
+
+
+
+Q20) Worker node node7 is not responding, have a look and fix the issue
+
+ Create exam scenario run these 2 commands:  
+ ssh node7 \ sudo sed -i 's/ca.crt/YOU_ARE_LOOKING_FOR_ME.crt/g' /var/lib/kubelet/config.yaml
+ ssh node7 \ sudo systemctl  restart kubelet
+   #kubenetes #CKA #DevOps #security #2023
+  It's an easy 1:  
+
+
+SOLUTION 20) 
+
+  alias g=kubectl
+  g get nodes
+  g describe node node7
+  
+  ssh node7
+ 
+ On node7 now:
+ 
+ sudo systemctl status kubelet
+    sudo systemctl restart kubelet
+    sudo systemctl status kubelet
+    sudo journalctl -u kubelet
+    ps -ef|grep kubelet
+    exit
+   
+   On Node6 now:
+   ps -ef|grep kubelet
+   ps -ef|grep kubelet |grep lib
+   sudo cat /var/lib/kubelet/config.yaml |ssh node7 "tee mconfig.yaml"
+   
+   ssh node7
+   ON Now node7 now:
+   
+   sudo diff mconfig.yaml /var/lib/kubelet/config.yaml
+   sudo sed -i 's/YOU_ARE_LOOKING_FOR_ME.crt/ca.crt/g'  /var/lib/kubelet/config.yaml
+   sudo grep ca.crt /var/lib/kubelet/config.yaml
+   sudo systemctl start kubelet
+   echo $?
+   sudo systemctl restart kubelet
+   sudo systemctl status kubelet
+   exit
+   
+   Node6 now
+ g get nodes
+ 
+ Walla! all good :)
+
+
+
+
+
+
+
+21) List internal IPs of all nodes of given cluster, save result to a file /root/InternalIPList
+ Answer should be in a format: Internal IP of 1st Node (space) Internal IP od 2nd node (in a single line)
+  
+ 
+  It's an easy 1: It's an easy 1:   #kubenetes #CKA #DevOps #security #2023  #google
+
+SOLUTION 21 
+ alias g=kubectl
+ 
+Note: you need to search for Cheat Sheet in the documentation and then search string "External", copy respective command and
+ just change External to internal and now it should get you the desired results:
+ 
+ g get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="internalIP")].address}' |sudo tee /root/internalIPList
+ 
+ sudo cat /root/internalIPList
+
+
+
+
+
+
+22) CKA exam Q22
+ Create a new deployment called nginx-deployment with an image nginx:1.16 and 5 replicas. There are 2 worker nodes in our cluster. 
+ Please make sure no pod will get deployed on node7.
+ 
+ Note: Revert any changes that you do on this environment. 
+  
+ 
+  It's an easy 1::
+  #kubenetes #CKA #DevOps #security #2023  #google 
+
+SOLUTION 22 
+ 
+ alias g=kubectl
+  g get pods
+  g get nodes
+  g cordon node7
+  g get nodes
+  g create deployment nginx-deployment --image=nginx:1.16 --replicas=5
+  g get pods -A -o wide
+  g uncordon node7
+  g get nodes
+
+
+
+
+
+
+
+
+23) CKA exam Q23
+ Create a replicaset (name : web-replica, image=nginx, replicas=3), there is already a pod running in our cluster.  
+ Please make sure that total count of pods running in the cluster is not more than 3.
+  
+  Create given pod well in advance using below command:
+  
+  g run web-critical --image=nginx --port 8080 --labels app=web
+  
+  It's an easy 1:  Practice_for_CKA_exam_Q23_with_solution .. Score good marks in CKA Exam 2023
+  #kubenetes #CKA #DevOps #security #2023 #google
+
+SOLUTION 23 
+ 
+
+  alias g=kubectl
+  g get pods --show-labels
+  g get pods -o yaml |less
+  g create deployment web --replicas=3 --image=nginx --port 8080  --dry-run=client -o yaml |tee  replica.yaml
+   cat replica.yaml
+   ###########
+   apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  labels:
+    app: web
+  name: web-critical
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+        ports:
+        - containerPort: 8080
+ ##########
+  
+  vi replica.yaml
+  g apply -f replica.yaml
+  g get pods
+  g get replicaset
+
+
+
+
+
+
+
+24) CKA exam Q24
+ We have worker 3 nodes in our cluster, create a DaemonSet (name prod-pod, image=nginx) on each node except worker node8.
+ 
+ 
+  
+  It's an easy 1: It's an easy 1: 
+  #kubenetes #CKA #DevOps #security #2023 #google
+
+SOLUTION 24 
+ 
+   alias g=kubectl
+   g get nodes
+   for i in 6 7 8 9; do g describe node node$i |grep -i taint; done
+   g taint node node8 env=uat:NoSchedule
+   for i in 6 7 8 9; do g describe node node$i |grep -i taint; done
+   g create deployment prod-pod --image=nginx --dry-run=client -o yaml
+   g create deployment prod-pod --image=nginx --dry-run=client -o yaml |tee prod-pod.yaml
+   vi prod-pod.yaml
+   #######
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: prod-pod
+  name: prod-pod
+spec:
+  selector:
+    matchLabels:
+      app: prod-pod
+  template:
+    metadata:
+      labels:
+        app: prod-pod
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+   #######
+   g create -f prod-pod.yaml
+   g get pods -o wide
+
+
+
+
+
+
+
+25) CKA exam Q25
+ A pod “prod-pod” (image=nginx, port 8080) in default namespace is not running. We need fix it and bring it in running state.
+ 
+ 
+  
+  It's an easy 1: It's an easy 1: 
+  #kubenetes #CKA #DevOps #security #2023 #google
+
+SOLUTION 25 
+ 
+  alias g=kubectl
+  g get pods
+  g describe pod prod-pod
+  for i in {6..9}; do echo node$i ; g describe node node$i |grep -i taint; done
+  g get pods prod-pod -o yaml |tee  prod-pod.yaml
+  g delete pod prod-pod
+  vi prod-pod.yaml
+  ###
+  apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: prod-pod
+  name: prod-pod
+spec:
+  containers:
+  - image: nginx
+    name: prod-pod
+    ports:
+    - containerPort: 8080
+  tolerations:
+    - key: "env"
+      operator: "Equal"
+      value: "prod"
+      effect: "NoSchedule"
+  
+  #####
+  g apply -f prod-pod.yaml
+  g get pods
+  g get pods -o wide
+
+
+
+
+
+
+
+
+26) CKA exam Q26
+ A pod “my-data-pod” in data namespace is not running. Fix the issue and get it in running state.
+  
+   Note: All supported definition files are placed at root.
+  
+   To create question scenario just change pv1claim.yaml and remove namespace information (ensure data namespace was created already) and apply them.
+
+    It's an easy 1:
+  #kubenetes #CKA #DevOps #security #2023 #google
+  Solution  26) 
+  
+Following yaml files works good for solution (ensure data namespace was created already)
+
+ 
+   cat pv1.yaml
+   ####
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv1
+spec:
+  capacity:
+    storage: 100Mi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+      path: /data
+   #############
+cat pv1claim.yaml
+#######
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pv1claim
+  namespace: data
+spec:
+  accessModes:
+    - ReadWriteMany
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 50Mi
+ ##########
+ cat pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-data-pod
+  namespace: data
+spec:
+  containers:
+    - name: mydata
+      image: nginx
+      volumeMounts:
+      - mountPath: "/maindata"
+        name: mypd
+  volumes:
+    - name: mypd
+      persistentVolumeClaim:
+        claimName: pv1claim
+  #########
+
+
+
+
+
+
+
+SOLUTION 27)  (NOTE: I am running this solution in a minikube environment)
+ g run web-pod --image=nginx
+ g expose pod web-pod --name=web-pod-svc --port 80
+ g get pods
+ g get pods -o wide
+ g describe svc web-pod-svc
+ g run nscheck --image=busybox:1.28 --command sleep 4800
+ g get pods -o wide
+ g exec -it nscheck -- nslookup web-pod-svc
+ g exec -it nscheck -- nslookup web-pod-svc |tee  web.svc
+ g exec -it nscheck -- nslookup 172-17-0-3.default.pod
+ g exec -it nscheck -- nslookup 172-17-0-3.default.pod | tee  web.pod
+
+
+
+
+
+CKA exam Q28
+We have deployed a pod called web-pod (where port 80 was exposed using service web-pod). Incoming connections (from a pod apicheck) to web-pod service are not working. 
+Identify and make certain changes on pod apicheck (re-deploy is needed) so that it can access web-pod.
+Note: A NetworkPolicy named api-allow was also created as part of the deployment.
+
+
+Run following commands to create exam like environment:
+
+echo 'kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: api-allow
+spec:
+  podSelector:
+    matchLabels:
+      app: bookstore
+      role: api
+  ingress:
+  - from:
+      - podSelector:
+          matchLabels:
+            app: bookstore' |tee  api-allow.yaml
+   
+
+ g apply -f api-allow.yaml
+  g run web-pod --image nginx --labels app=bookstore,role=api --expose --port  80
+ g run apicheck --image alpine  --labels role=api --command sleep 4800
+ 
+   
+
+  It's an easy 1: It's an easy 1: 
+  #kubenetes #CKA #DevOps #security #2023 #k8sgoogle
+
+SOLUTION 25 
+ 
+ alias g=kubectl
+ g get netpol
+ g describe netpol api-allow
+ g get pods --show-labels
+ g get svc
+ g exec -it apicheck -- wget http://web-pod
+ g get pods
+ g edit pod apicheck
+ g get pods --show-labels
+ g exec -it apicheck -- wget http://web-pod
+
+
+
+
+
+
+
+
+
+31 - CKA exam Q31 with Solution... Kubernetes network policy
+
+
+
+echo 'apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: internal-policy
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      name: internal
+  policyTypes:
+  - Egress
+  - Ingress
+  ingress:
+    - {}
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          db: mysql
+    ports:
+    - protocol: TCP
+      port: 3306
+
+  - to:
+    - podSelector:
+        matchLabels:
+          app: payroll
+    ports:
+    - protocol: TCP
+      port: 8080
+
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP' |tee internal-policy.yaml
+
+
+
+
+33 - CKA exam Q33 with Solution... create a network policy for incoming web connections
+
+
+Command to create question environment:
+alias g=kubectl
+g run web-test --image nginx
+g expose pod  web-test --name web-test-svc --type NodePort --port 80
+g run connect-pod --image busybox --command sleep 4800
+g exec -it connect-pod -- wget  
+
+echo '---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress' |tee deny-all.yaml
+
+
+g apply -f deny-all.yaml
+
+
+
+SOLUTION:
+
+echo 'apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-to-web-test
+  namespace: default
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - 
+      ports:
+        - protocol: TCP
+          port: 80' | tee ingress-to-web-test.yaml
+
+
+g apply -f ingress-to-web-test
+g exec -it connect-pod -- wget web-test-svc
+
+
+
+
+
+
+37 - CKA exam Q37 with Solution... mount secret in 2 pods using filesystem and environment variable
+
+
+echo 'apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-sec-file
+spec:
+  containers:
+  - image: redis
+    name: redis
+    volumeMounts:
+    - name: sec1
+      mountPath: "/secrets"
+  volumes:
+  - name: sec1
+    secret:
+     secretName: sec1' |tee  pod-sec-file.yaml
+##
+echo 'apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  name: pod-sec-env
+spec:
+  containers:
+  - image: redis
+    name: redis
+    env:
+    - name: CONFIDENTIAL
+      valueFrom:
+        secretKeyRef:
+          name: sec1
+          key: password' |tee  pod-sec-env.yaml
+
+
+
+
+42 - CKA exam Q42 with Solution... list all workloads (resources) in a Kubernetes cluster
+
+
+One should memorize below command :
+
+#kubectl get ds,sts,deploy,rs,rc -A
+
+where:
+rs is for ReplicaSets
+ds is DaemonSets
+sts is for StatefulSets
+deploy is for Deployments
+rc is for ReplicationControllers
+
+
+
+
+
